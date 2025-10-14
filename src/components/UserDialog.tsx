@@ -12,18 +12,43 @@ interface UserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  user?: { id: string; full_name: string; email: string; user_roles: { role: string } } | null;
+  user?: { id: string; full_name: string; email: string; user_roles: { role: string }; site_id: string; site_name: string } | null;
 }
 
 const UserDialog = ({ open, onOpenChange, onSuccess, user }: UserDialogProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [sites, setSites] = useState<any[]>([]);
+  const [sitesLoading, setSitesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      setSitesLoading(true);
+      const { data, error } = await supabase.from("sites").select("id, name").order("name");
+      if (error) {
+        console.error("Error fetching sites:", error);
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de charger les sites.",
+        });
+      } else {
+        setSites(data || []);
+      }
+      setSitesLoading(false);
+    };
+
+    if (open) {
+      fetchSites();
+    }
+  }, [open]);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     full_name: "",
     role: "cashier" as "admin" | "manager" | "cashier",
+    site_id: "", // Ajout du site_id
   });
 
   useEffect(() => {
@@ -33,6 +58,7 @@ const UserDialog = ({ open, onOpenChange, onSuccess, user }: UserDialogProps) =>
         password: "", // Le mot de passe n'est pas modifié ici
         full_name: user.full_name || "",
         role: user.user_roles.role as "admin" | "manager" | "cashier",
+        site_id: user.site_id, // Initialise avec le site de l'utilisateur
       });
     } else {
       setFormData({
@@ -40,9 +66,10 @@ const UserDialog = ({ open, onOpenChange, onSuccess, user }: UserDialogProps) =>
         password: "",
         full_name: "",
         role: "cashier",
+        site_id: sites.length > 0 ? sites[0].id : "", // Sélectionne le premier site par défaut
       });
     }
-  }, [user, open]);
+  }, [user, open, sites]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,6 +184,30 @@ const UserDialog = ({ open, onOpenChange, onSuccess, user }: UserDialogProps) =>
                 <SelectItem value="cashier">Caissier</SelectItem>
                 <SelectItem value="manager">Gestionnaire</SelectItem>
                 <SelectItem value="admin">Administrateur</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="site">Site</Label>
+            <Select
+              value={formData.site_id}
+              onValueChange={(value: string) => setFormData({ ...formData, site_id: value })}
+              disabled={sitesLoading || sites.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un site" />
+              </SelectTrigger>
+              <SelectContent>
+                {sitesLoading ? (
+                                        <SelectItem value="loading-sites" disabled>Chargement des sites...</SelectItem>
+                                      ) : sites.length === 0 ? (
+                                        <SelectItem value="no-sites" disabled>Aucun site disponible</SelectItem>                ) : (
+                  sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

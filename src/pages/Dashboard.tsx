@@ -33,10 +33,10 @@ const Dashboard = () => {
   const [recentWithdrawals, setRecentWithdrawals] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<"investment" | "withdrawal">("investment");
-  const { user, role } = useContext(AuthContext);
+  const { user, role, selectedSiteId, selectedSiteName } = useContext(AuthContext);
 
   const fetchAllData = useCallback(async () => {
-    if (!user) return;
+    if (!user || !selectedSiteId) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -46,6 +46,7 @@ const Dashboard = () => {
     const { data: sales } = await supabase
       .from("sales")
       .select("id, total, profit")
+      .eq("site_id", selectedSiteId)
       .gte("created_at", todayISO);
 
     const todaySales = sales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
@@ -61,7 +62,10 @@ const Dashboard = () => {
     }
 
     // Load products stats
-    const { data: products } = await supabase.from("products").select("id, name, stock, alert_threshold");
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, name, stock, alert_threshold")
+      .eq("site_id", selectedSiteId);
 
     const lowStockProducts = products?.filter((p) => p.stock <= p.alert_threshold) || [];
     const lowStock = lowStockProducts.length;
@@ -72,6 +76,7 @@ const Dashboard = () => {
       .from("sales")
       .select("id")
       .eq("cashier_id", user.id)
+      .eq("site_id", selectedSiteId)
       .gte("created_at", todayISO);
 
     if (userSales && userSales.length > 0) {
@@ -111,7 +116,7 @@ const Dashboard = () => {
     setStats({ todaySales, todayProfit, todayItemsSold, lowStock, totalProducts });
     setAlerts(lowStockProducts.map(p => ({ id: p.id, message: `Stock faible pour ${p.name} (${p.stock} restants)` })));
 
-  }, [user]);
+  }, [user, selectedSiteId]);
 
   useEffect(() => {
     fetchAllData();

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -10,17 +10,9 @@ import { format, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AuthContext } from "@/App";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
-
-// Solution de contournement pour s'assurer que autoTable est attaché à jsPDF
-// Cela résout les problèmes où l'importation par effet de bord ne fonctionne pas toujours
-if (typeof jsPDF.API.autoTable === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  import('jspdf-autotable');
-}
-
+import * as jspdfAutoTable from "jspdf-autotable";
 
 const History = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
@@ -31,13 +23,14 @@ const History = () => {
   const [totalCOGSAmount, setTotalCOGSAmount] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { selectedSiteId } = useContext(AuthContext);
 
   const handleSearch = async () => {
-    if (!dateFrom || !dateTo) {
+    if (!dateFrom || !dateTo || !selectedSiteId) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Veuillez sélectionner une date de début et de fin.",
+        description: "Veuillez sélectionner une date de début, une date de fin et un site.",
       });
       return;
     }
@@ -60,6 +53,7 @@ const History = () => {
       `)
       .gte("sales.created_at", from)
       .lte("sales.created_at", to)
+      .eq("sales.site_id", selectedSiteId)
       .order("created_at", { foreignTable: "sales", ascending: false });
 
     if (error) {
@@ -110,7 +104,7 @@ const History = () => {
     doc.text(`Nombre de transactions: ${sales.length}`, 14, 58);
 
     // Table
-    doc.autoTable({
+    jspdfAutoTable.default(doc, {
       startY: 55,
       head: [["Date", "Produit", "Caissier", "Qté", "Prix Unit.", "Total"]],
       body: sales.map(item => [

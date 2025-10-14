@@ -11,24 +11,35 @@ import POS from "./pages/POS";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import History from "./pages/History";
+import Sites from "./pages/Sites";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 import { useUserRole, UserRole } from "./hooks/useUserRole";
 import { User } from "@supabase/supabase-js";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 type AuthContextType = {
   user: User | null;
   role: UserRole;
   loading: boolean;
+  siteId: string | null;
+  siteName: string | null;
+  selectedSiteId: string | null;
+  selectedSiteName: string | null;
+  setSelectedSiteId: (id: string | null) => void;
+  setSelectedSiteName: (name: string | null) => void;
 };
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   role: null,
   loading: true,
+  siteId: null,
+  siteName: null,
+  selectedSiteId: null,
+  selectedSiteName: null,
 });
 
 const AppRoutes = () => {
@@ -79,6 +90,10 @@ const AppRoutes = () => {
           path="/history"
           element={!user ? <Navigate to="/auth" /> : <History />}
         />
+        <Route
+          path="/sites"
+          element={!user ? <Navigate to="/auth" /> : <Sites />}
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
@@ -86,12 +101,22 @@ const AppRoutes = () => {
 };
 
 const App = () => {
-  const { user, role, loading } = useUserRole();
+  const { user, role, loading, siteId, siteName } = useUserRole();
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(siteId);
+  const [selectedSiteName, setSelectedSiteName] = useState<string | null>(siteName);
+
+  // Met à jour le site sélectionné lorsque le site de l'utilisateur change
+  useEffect(() => {
+    if (siteId && !selectedSiteId) {
+      setSelectedSiteId(siteId);
+      setSelectedSiteName(siteName);
+    }
+  }, [siteId, siteName, selectedSiteId]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthContext.Provider value={{ user, role, loading }}>
+        <AuthContext.Provider value={{ user, role, loading, siteId, siteName, selectedSiteId, selectedSiteName, setSelectedSiteId, setSelectedSiteName }}>
           <Toaster />
           <Sonner />
           <AppRoutes />

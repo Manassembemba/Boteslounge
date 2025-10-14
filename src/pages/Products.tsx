@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import ProductDialog from "@/components/ProductDialog";
 import { Badge } from "@/components/ui/badge";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useContext } from "react";
+import { AuthContext } from "@/App";
 
 interface Product {
   id: string;
@@ -26,15 +28,19 @@ const Products = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
   const { isAdmin, loading: roleLoading } = useUserRole();
+  const { selectedSiteId } = useContext(AuthContext);
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [selectedSiteId]);
 
   const loadProducts = async () => {
+    if (!selectedSiteId) return;
+
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select("id, name, category, purchase_price, selling_price, stock, alert_threshold, is_active")
+      .eq("site_id", selectedSiteId)
       .order("name");
 
     if (error) {

@@ -30,18 +30,21 @@ const POS = () => {
   const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { toast } = useToast();
-  const { role } = useContext(AuthContext);
+  const { role, selectedSiteId } = useContext(AuthContext);
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [selectedSiteId]);
 
   const loadProducts = async () => {
+    if (!selectedSiteId) return;
+
     console.log("Chargement des produits...");
     const { data, error } = await supabase
       .from("products")
       .select("id, name, selling_price, purchase_price, stock")
       .eq("is_active", true)
+      .eq("site_id", selectedSiteId)
       .order("name");
 
     if (error) {
@@ -131,14 +134,12 @@ const POS = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Create sale
-      const { data: sale, error: saleError } = await supabase
-        .from("sales")
-        .insert([{ cashier_id: user.id, total, profit }])
-        .select()
-        .single();
-
-      if (saleError || !sale) {
+          // Create sale
+          const { data: sale, error: saleError } = await supabase
+            .from("sales")
+            .insert([{ cashier_id: user.id, total, profit, site_id: selectedSiteId }])
+                  .select('*')
+                  .single();      if (saleError || !sale) {
         toast({
           variant: "destructive",
           title: "Erreur",

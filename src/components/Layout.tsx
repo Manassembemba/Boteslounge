@@ -1,6 +1,13 @@
-import { ReactNode, useContext, useMemo } from "react";
+import { ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Package, ShoppingCart, BarChart3, LogOut, Users, History } from "lucide-react";
+import { Home, Package, ShoppingCart, BarChart3, LogOut, Users, History, Building } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +34,34 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, role, loading } = useContext(AuthContext);
+  const { user, role, loading, siteId, siteName, selectedSiteId, selectedSiteName, setSelectedSiteId, setSelectedSiteName } = useContext(AuthContext);
+  const [availableSites, setAvailableSites] = useState<any[]>([]);
+  const [sitesLoading, setSitesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      setSitesLoading(true);
+      let sitesData: any[] = [];
+      if (role === "admin") {
+        const { data, error } = await supabase.from("sites").select("id, name").order("name");
+        if (error) console.error("Error fetching all sites:", error);
+        sitesData = data || [];
+      } else if (siteId && siteName) {
+        sitesData = [{ id: siteId, name: siteName }];
+      }
+      setAvailableSites(sitesData);
+      // Initialise le site sélectionné si ce n'est pas déjà fait
+      if (!selectedSiteId && sitesData.length > 0) {
+        setSelectedSiteId(sitesData[0].id);
+        setSelectedSiteName(sitesData[0].name);
+      }
+      setSitesLoading(false);
+    };
+
+    if (user) {
+      fetchSites();
+    }
+  }, [user, role, siteId, siteName, selectedSiteId, setSelectedSiteId, setSelectedSiteName]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -45,6 +79,7 @@ const Layout = ({ children }: LayoutProps) => {
     { path: "/reports", icon: BarChart3, label: "Rapports", roles: ["admin", "manager"] },
     { path: "/history", icon: History, label: "Historique", roles: ["admin", "manager", "cashier"] },
     { path: "/users", icon: Users, label: "Utilisateurs", roles: ["admin"] },
+    { path: "/sites", icon: Building, label: "Sites", roles: ["admin"] },
   ];
 
   const isMobile = useIsMobile();
@@ -95,8 +130,40 @@ const Layout = ({ children }: LayoutProps) => {
 
       <SidebarInset>
         <header className="flex h-16 items-center justify-between border-b bg-card/50 px-4 backdrop-blur-sm">
-            <SidebarTrigger />
+            {isMobile && <SidebarTrigger />}
             <div className="flex-1" />
+            {(role === "admin" || role === "manager") && (
+              <div className="mr-4">
+                <Select
+                  value={selectedSiteId || ""}
+                  onValueChange={(value) => {
+                    const selected = availableSites.find(s => s.id === value);
+                    if (selected) {
+                      setSelectedSiteId(selected.id);
+                      setSelectedSiteName(selected.name);
+                    }
+                  }}
+                  disabled={sitesLoading || availableSites.length === 0}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sélectionner un site" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sitesLoading ? (
+                      <SelectItem value="loading-sites" disabled>Chargement des sites...</SelectItem>
+                    ) : availableSites.length === 0 ? (
+                      <SelectItem value="no-sites" disabled>Aucun site disponible</SelectItem>
+                    ) : (
+                      availableSites.map((site) => (
+                        <SelectItem key={site.id} value={site.id}>
+                          {site.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex items-center gap-4">
                 { !loading && user?.user_metadata?.full_name && (
                     <p className="text-sm text-muted-foreground">

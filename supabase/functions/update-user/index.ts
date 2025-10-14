@@ -24,7 +24,7 @@ serve(async (req) => {
     if (userRole?.role !== "admin") throw new Error("Seuls les administrateurs peuvent modifier des utilisateurs");
 
     // 2. Récupérer les données à mettre à jour
-    const { userIdToUpdate, fullName, role, password } = await req.json();
+    const { userIdToUpdate, fullName, role, password, siteId } = await req.json();
     if (!userIdToUpdate) throw new Error("L'ID de l'utilisateur à modifier est manquant.");
 
     // 3. Construire le payload de mise à jour pour l'utilisateur
@@ -46,7 +46,14 @@ serve(async (req) => {
     );
     if (userUpdateError) throw userUpdateError;
 
-    // 5. Mettre à jour le rôle de l'utilisateur
+    // 5. Mettre à jour le profil (nom complet et site_id)
+    const { error: profileUpdateError } = await supabaseAdmin
+      .from("profiles")
+      .update({ full_name: fullName, site_id: siteId })
+      .eq("id", userIdToUpdate);
+    if (profileUpdateError) throw profileUpdateError;
+
+    // 6. Mettre à jour le rôle de l'utilisateur
     const { error: roleUpdateError } = await supabaseAdmin
       .from("user_roles")
       .update({ role })

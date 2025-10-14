@@ -7,6 +7,8 @@ export type UserRole = 'admin' | 'manager' | 'cashier' | null;
 export const useUserRole = () => {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>(null);
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const [siteName, setSiteName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,17 +20,29 @@ export const useUserRole = () => {
         setUser(session.user);
         const { data, error } = await supabase
           .from('user_roles')
-          .select('role')
+          .select('role, profiles(site_id, sites(name)))')
           .eq('user_id', session.user.id);
 
         if (error) {
           console.error('Error fetching user role:', error);
           setRole(null);
+          setSiteId(null);
+          setSiteName(null);
         } else if (data && data.length > 0) {
-          // Prenez le premier rôle trouvé pour éviter de planter s'il y a des doublons
-          setRole(data[0].role as UserRole);
+          const userRoleData = data[0];
+          setRole(userRoleData.role as UserRole);
+          if (userRoleData.profiles && userRoleData.profiles.length > 0) {
+            const profile = userRoleData.profiles[0];
+            setSiteId(profile.site_id);
+            setSiteName(profile.sites?.name || null);
+          } else {
+            setSiteId(null);
+            setSiteName(null);
+          }
         } else {
           setRole(null);
+          setSiteId(null);
+          setSiteName(null);
         }
       } else {
         setUser(null);
@@ -56,5 +70,5 @@ export const useUserRole = () => {
     };
   }, []);
 
-  return { user, role, loading, isAdmin: role === 'admin', isManager: role === 'manager', isCashier: role === 'cashier' };
+  return { user, role, loading, isAdmin: role === 'admin', isManager: role === 'manager', isCashier: role === 'cashier', siteId, siteName };
 };

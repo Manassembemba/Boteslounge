@@ -60,7 +60,11 @@ serve(async (req) => {
     }
 
     // 3. Créer le nouvel utilisateur
-    const { email, password, full_name, role } = (await req.json()) as CreateUserPayload;
+    const { email, password, full_name, role, site_id } = (await req.json()) as CreateUserPayload;
+
+    if (!site_id) {
+      throw new Error("L'ID du site est manquant.");
+    }
 
     const { data: newUser, error: createError } =
       await supabaseAdmin.auth.admin.createUser({
@@ -77,15 +81,23 @@ serve(async (req) => {
       throw new Error("La création de l'utilisateur a échoué.");
     }
 
-    // 4. Assigner le rôle au nouvel utilisateur (en utilisant upsert)
-    const { error: upsertError } = await supabaseAdmin
+    // 4. Assigner le rôle et le site au nouvel utilisateur
+    const { error: insertError } = await supabaseAdmin
+      .from("profiles")
+      .insert({ id: newUser.user.id, full_name, site_id });
+
+    if (insertError) {
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      throw insertError;
+    }
+
+    const { error: roleInsertError } = await supabaseAdmin
       .from("user_roles")
       .upsert({ user_id: newUser.user.id, role }, { onConflict: "user_id" });
 
-    if (upsertError) {
-      // En cas d'échec, supprimer l'utilisateur créé pour éviter les orphelins
+    if (roleInsertError) {
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-      throw upsertError;
+      throw roleInsertError;
     }
 
     return new Response(JSON.stringify({ message: "Utilisateur créé avec succès" }), {
