@@ -16,6 +16,10 @@ import jsPDF from "jspdf";
 import * as jspdfAutoTable from "jspdf-autotable";
 
 const History = () => {
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [sales, setSales] = useState<any[]>([]);
+  const [totalSalesAmount, setTotalSalesAmount] = useState(0);
   const [totalProfitAmount, setTotalProfitAmount] = useState(0);
   const [totalCOGSAmount, setTotalCOGSAmount] = useState(0);
   const [loading, setLoading] = useState(false);
