@@ -190,6 +190,7 @@ const POS = () => {
           type: "out",
           quantity: item.quantity,
           notes: `Vente #${sale.id.slice(0, 8)}`,
+          site_id: selectedSiteId, // Ajout du site_id manquant
         }]);
       }
 

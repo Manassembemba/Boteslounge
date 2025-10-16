@@ -43,7 +43,7 @@ const Users = () => {
   const loadUsers = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, full_name, user_roles(role)")
+      .select("id, email, full_name, site_id, user_roles(role)")
       .order("email");
 
     setUsers(data || []);

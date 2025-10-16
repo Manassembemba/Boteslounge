@@ -109,7 +109,7 @@ const ProductDialog = ({ open, onOpenChange, product, onSuccess }: ProductDialog
     } else {
       toast({
         title: "Succès",
-        description: product ? "Produit modifié" : "Produit ajouté",
+        description: product ? "Article modifié" : "Article ajouté",
       });
       onSuccess();
       onOpenChange(false);
@@ -121,7 +121,7 @@ const ProductDialog = ({ open, onOpenChange, product, onSuccess }: ProductDialog
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{product ? "Modifier le produit" : "Ajouter un produit"}</DialogTitle>
+          <DialogTitle>{product ? "Modifier l'article" : "Ajouter un article"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

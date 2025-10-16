@@ -43,11 +43,16 @@ const Dashboard = () => {
     const todayISO = today.toISOString();
 
     // Load today's sales for stats
-    const { data: sales } = await supabase
+    let salesQuery = supabase
       .from("sales")
       .select("id, total, profit")
-      .eq("site_id", selectedSiteId)
       .gte("created_at", todayISO);
+
+    if (selectedSiteId) {
+      salesQuery = salesQuery.eq("site_id", selectedSiteId);
+    }
+
+    const { data: sales } = await salesQuery;
 
     const todaySales = sales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
     const todayProfit = sales?.reduce((sum, sale) => sum + Number(sale.profit), 0) || 0;
@@ -62,22 +67,32 @@ const Dashboard = () => {
     }
 
     // Load products stats
-    const { data: products } = await supabase
+    let productsQuery = supabase
       .from("products")
-      .select("id, name, stock, alert_threshold")
-      .eq("site_id", selectedSiteId);
+      .select("id, name, stock, alert_threshold");
+
+    if (selectedSiteId) {
+      productsQuery = productsQuery.eq("site_id", selectedSiteId);
+    }
+
+    const { data: products } = await productsQuery;
 
     const lowStockProducts = products?.filter((p) => p.stock <= p.alert_threshold) || [];
     const lowStock = lowStockProducts.length;
     const totalProducts = products?.length || 0;
 
     // Load user's sale items history for today
-    const { data: userSales } = await supabase
+    let userSalesQuery = supabase
       .from("sales")
       .select("id")
       .eq("cashier_id", user.id)
-      .eq("site_id", selectedSiteId)
       .gte("created_at", todayISO);
+
+    if (selectedSiteId) {
+      userSalesQuery = userSalesQuery.eq("site_id", selectedSiteId);
+    }
+
+    const { data: userSales } = await userSalesQuery;
 
     if (userSales && userSales.length > 0) {
       const { data: itemsHistoryData } = await supabase
@@ -91,12 +106,12 @@ const Dashboard = () => {
     }
 
     if (role === 'admin') {
-      const { data: capitalData, error: capitalError } = await supabase.rpc('get_total_capital');
+      const { data: capitalData, error: capitalError } = await supabase.rpc('get_total_capital', { p_site_id: selectedSiteId });
       if (!capitalError) {
         setTotalCapital(capitalData);
       }
 
-      const { data: profitData, error: profitError } = await supabase.rpc('get_total_sale_profit');
+      const { data: profitData, error: profitError } = await supabase.rpc('get_total_sale_profit', { p_site_id: selectedSiteId });
       if (!profitError) {
         setTotalProfit(profitData);
       }
@@ -314,6 +329,7 @@ const Dashboard = () => {
         onOpenChange={setDialogOpen}
         onSuccess={fetchAllData}
         transactionType={transactionType}
+        selectedSiteId={selectedSiteId}
       />
     </Layout>
   );

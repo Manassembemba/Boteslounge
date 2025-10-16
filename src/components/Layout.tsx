@@ -50,18 +50,13 @@ const Layout = ({ children }: LayoutProps) => {
         sitesData = [{ id: siteId, name: siteName }];
       }
       setAvailableSites(sitesData);
-      // Initialise le site sélectionné si ce n'est pas déjà fait
-      if (!selectedSiteId && sitesData.length > 0) {
-        setSelectedSiteId(sitesData[0].id);
-        setSelectedSiteName(sitesData[0].name);
-      }
       setSitesLoading(false);
     };
 
     if (user) {
       fetchSites();
     }
-  }, [user, role, siteId, siteName, selectedSiteId, setSelectedSiteId, setSelectedSiteName]);
+  }, [user, role, siteId, siteName]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -74,7 +69,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   const allNavItems = [
     { path: "/dashboard", icon: Home, label: "Tableau de bord", roles: ["admin", "manager", "cashier"] },
-    { path: "/products", icon: Package, label: "Produits", roles: ["admin", "manager"] },
+    { path: "/stock", icon: Package, label: "Stock", roles: ["admin", "manager"] },
     { path: "/pos", icon: ShoppingCart, label: "Caisse", roles: ["admin", "manager", "cashier"] },
     { path: "/reports", icon: BarChart3, label: "Rapports", roles: ["admin", "manager"] },
     { path: "/history", icon: History, label: "Historique", roles: ["admin", "manager", "cashier"] },
@@ -137,10 +132,15 @@ const Layout = ({ children }: LayoutProps) => {
                 <Select
                   value={selectedSiteId || ""}
                   onValueChange={(value) => {
-                    const selected = availableSites.find(s => s.id === value);
-                    if (selected) {
-                      setSelectedSiteId(selected.id);
-                      setSelectedSiteName(selected.name);
+                    if (value === "all-sites") {
+                      setSelectedSiteId(null);
+                      setSelectedSiteName(null);
+                    } else {
+                      const selected = availableSites.find(s => s.id === value);
+                      if (selected) {
+                        setSelectedSiteId(selected.id);
+                        setSelectedSiteName(selected.name);
+                      }
                     }
                   }}
                   disabled={sitesLoading || availableSites.length === 0}
@@ -150,15 +150,16 @@ const Layout = ({ children }: LayoutProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     {sitesLoading ? (
-                      <SelectItem value="loading-sites" disabled>Chargement des sites...</SelectItem>
-                    ) : availableSites.length === 0 ? (
-                      <SelectItem value="no-sites" disabled>Aucun site disponible</SelectItem>
+                      <SelectItem value="loading-sites" disabled>Chargement...</SelectItem>
                     ) : (
-                      availableSites.map((site) => (
-                        <SelectItem key={site.id} value={site.id}>
-                          {site.name}
-                        </SelectItem>
-                      ))
+                      <>
+                        {role === 'admin' && <SelectItem value="all-sites">Tous les sites</SelectItem>}
+                        {availableSites.map((site) => (
+                          <SelectItem key={site.id} value={site.id}>
+                            {site.name}
+                          </SelectItem>
+                        ))}
+                      </>
                     )}
                   </SelectContent>
                 </Select>

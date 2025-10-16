@@ -86,8 +86,8 @@ const Products = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Produits</h1>
-            <p className="text-muted-foreground">Gérez votre inventaire</p>
+            <h1 className="text-3xl font-bold text-foreground">Stock</h1>
+            <p className="text-muted-foreground">Gérez l'état de votre stock</p>
           </div>
           {isAdmin && (
             <Button
@@ -97,7 +97,7 @@ const Products = () => {
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Ajouter un produit
+              Ajouter un article
             </Button>
           )}
         </div>

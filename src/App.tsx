@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -42,8 +42,34 @@ export const AuthContext = createContext<AuthContextType>({
   selectedSiteName: null,
 });
 
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
 const AppRoutes = () => {
-  const { user, loading } = useContext(AuthContext);
+  const { user, role, loading } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Si le chargement est terminé, qu'on a un utilisateur mais pas de rôle, c'est un état invalide.
+    if (!loading && user && !role) {
+      toast({
+        variant: "destructive",
+        title: "Session invalide",
+        description: "Votre utilisateur n'a pas de rôle assigné. Vous avez été déconnecté.",
+      });
+      supabase.auth.signOut();
+      navigate("/auth");
+    }
+  }, [loading, user, role, navigate, toast]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -54,8 +80,7 @@ const AppRoutes = () => {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
         <Route
           path="/"
           element={
@@ -71,7 +96,7 @@ const AppRoutes = () => {
           element={!user ? <Navigate to="/auth" /> : <Dashboard />}
         />
         <Route
-          path="/products"
+          path="/stock"
           element={!user ? <Navigate to="/auth" /> : <Products />}
         />
         <Route
@@ -96,7 +121,7 @@ const AppRoutes = () => {
         />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+    
   );
 };
 
@@ -119,7 +144,9 @@ const App = () => {
         <AuthContext.Provider value={{ user, role, loading, siteId, siteName, selectedSiteId, selectedSiteName, setSelectedSiteId, setSelectedSiteName }}>
           <Toaster />
           <Sonner />
-          <AppRoutes />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
         </AuthContext.Provider>
       </TooltipProvider>
     </QueryClientProvider>

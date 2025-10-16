@@ -31,8 +31,9 @@ export const useUserRole = () => {
         } else if (data && data.length > 0) {
           const userRoleData = data[0];
           setRole(userRoleData.role as UserRole);
-          if (userRoleData.profiles && userRoleData.profiles.length > 0) {
-            const profile = userRoleData.profiles[0];
+          // Correction: `profiles` est un objet, pas un tableau. On vérifie juste son existence.
+          if (userRoleData.profiles) {
+            const profile = userRoleData.profiles;
             setSiteId(profile.site_id);
             setSiteName(profile.sites?.name || null);
           } else {

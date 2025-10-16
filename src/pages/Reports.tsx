@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
+import { useTheme } from "next-themes";
 
 interface SaleData {
   date: string;
@@ -17,13 +19,13 @@ const Reports = () => {
   const [salesData, setSalesData] = useState<SaleData[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const { isAdmin } = useUserRole();
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadReports();
   }, []);
 
   const loadReports = async () => {
-    // Load last 7 days sales
     const sevenDaysAgo = subDays(new Date(), 7);
     
     const { data: sales } = await supabase
@@ -31,7 +33,6 @@ const Reports = () => {
       .select("total, profit, created_at")
       .gte("created_at", sevenDaysAgo.toISOString());
 
-    // Group by date
     const grouped = (sales || []).reduce((acc: any, sale) => {
       const date = format(new Date(sale.created_at), "yyyy-MM-dd");
       if (!acc[date]) {
@@ -43,94 +44,113 @@ const Reports = () => {
       return acc;
     }, {});
 
-    setSalesData(Object.values(grouped));
+    const sortedSales = Object.values(grouped).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    setSalesData(sortedSales as SaleData[]);
 
-    // Load top products
     const { data: saleItems } = await supabase
       .from("sale_items")
-      .select("quantity, product_id, products(name)")
+      .select("quantity, products(name)")
       .gte("created_at", sevenDaysAgo.toISOString());
 
     const productSales = (saleItems || []).reduce((acc: any, item: any) => {
       const name = item.products?.name || "Unknown";
       if (!acc[name]) {
-        acc[name] = 0;
+        acc[name] = { name, value: 0 };
       }
-      acc[name] += item.quantity;
+      acc[name].value += item.quantity;
       return acc;
     }, {});
 
-    const top = Object.entries(productSales)
-      .map(([name, quantity]) => ({ name, quantity }))
-      .sort((a: any, b: any) => b.quantity - a.quantity)
+    const top = Object.values(productSales)
+      .sort((a: any, b: any) => b.value - a.value)
       .slice(0, 5);
 
     setTopProducts(top);
   };
+
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#AF19FF"];
 
   return (
     <Layout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Rapports</h1>
-          <p className="text-muted-foreground">Analyses et statistiques</p>
+          <p className="text-muted-foreground">Analyses et statistiques des 7 derniers jours</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Sales by day */}
-          <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm">
+          <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm col-span-2 lg:col-span-1">
             <CardHeader>
               <CardTitle>Ventes des 7 derniers jours</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {salesData.length === 0 ? (
-                  <p className="text-center text-sm text-muted-foreground py-8">Aucune vente</p>
-                ) : (
-                  salesData.map((day) => (
-                    <div key={day.date} className="flex items-center justify-between border-b border-border pb-2">
-                      <div>
-                        <p className="font-medium">
-                          {format(new Date(day.date), "d MMMM", { locale: fr })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{day.count} vente(s)</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-primary">{day.total.toFixed(2)} FC</p>
-                        {isAdmin && (
-                          <p className="text-xs text-success">+{day.profit.toFixed(2)} FC</p>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+            <CardContent className="h-[400px]">
+              {salesData.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">Aucune vente à afficher</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={salesData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#333' : '#ccc'} />
+                    <XAxis 
+                      dataKey="date" 
+                      tickFormatter={(str) => format(parseISO(str), "d MMM", { locale: fr })}
+                      stroke={theme === 'dark' ? '#888' : '#333'}
+                    />
+                    <YAxis stroke={theme === 'dark' ? '#888' : '#333'} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: theme === 'dark' ? '#222' : '#fff',
+                        borderColor: theme === 'dark' ? '#444' : '#ccc'
+                      }}
+                      labelFormatter={(label) => format(parseISO(label), "eeee d MMMM", { locale: fr })}
+                      formatter={(value, name) => [
+                        `${Number(value).toFixed(2)} FC`,
+                        name === 'total' ? 'Ventes' : 'Bénéfice'
+                      ]}
+                    />
+                    <Legend formatter={(value) => value === 'total' ? 'Ventes' : 'Bénéfice'} />
+                    <Bar dataKey="total" fill="#3b82f6" name="Ventes" />
+                    {isAdmin && <Bar dataKey="profit" fill="#10b981" name="Bénéfice" />}
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
-          {/* Top products */}
-          <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm">
+          <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm col-span-2 lg:col-span-1">
             <CardHeader>
               <CardTitle>Top 5 produits</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {topProducts.length === 0 ? (
+            <CardContent className="h-[400px]">
+              {topProducts.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground py-8">Aucune donnée</p>
                 ) : (
-                  topProducts.map((product, index) => (
-                    <div key={product.name} className="flex items-center justify-between border-b border-border pb-2">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                          {index + 1}
-                        </span>
-                        <span className="font-medium">{product.name}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">{product.quantity} vendus</span>
-                    </div>
-                  ))
-                )}
-              </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={topProducts}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={120}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {topProducts.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value, name) => [`${value} vendus`, name]}
+                      contentStyle={{ 
+                        backgroundColor: theme === 'dark' ? '#222' : '#fff',
+                        borderColor: theme === 'dark' ? '#444' : '#ccc'
+                      }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </div>

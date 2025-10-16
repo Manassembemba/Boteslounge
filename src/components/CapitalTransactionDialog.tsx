@@ -12,6 +12,7 @@ interface CapitalTransactionDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   transactionType: "investment" | "withdrawal";
+  selectedSiteId: string | null;
 }
 
 const CapitalTransactionDialog = ({
@@ -19,6 +20,7 @@ const CapitalTransactionDialog = ({
   onOpenChange,
   onSuccess,
   transactionType,
+  selectedSiteId,
 }: CapitalTransactionDialogProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -53,6 +55,7 @@ const CapitalTransactionDialog = ({
         amount: numericAmount,
         description,
         type: transactionType,
+        site_id: selectedSiteId,
       },
     });
 
