@@ -13,7 +13,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   
@@ -39,8 +39,25 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
+    let userEmail = identifier;
+
+    // Si l'identifiant n'est pas un email, on suppose que c'est un nom d'utilisateur
+    if (!identifier.includes('@')) {
+      const { data, error } = await supabase.rpc('get_email_for_username', { p_username: identifier });
+      if (error || !data) {
+        toast({
+          variant: "destructive",
+          title: "Erreur de connexion",
+          description: "Nom d'utilisateur ou mot de passe incorrect.",
+        });
+        setLoading(false);
+        return;
+      }
+      userEmail = data;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: userEmail,
       password,
     });
 
@@ -48,7 +65,7 @@ const Auth = () => {
       toast({
         variant: "destructive",
         title: "Erreur de connexion",
-        description: error.message,
+        description: error.message === 'Invalid login credentials' ? "Nom d'utilisateur ou mot de passe incorrect." : error.message,
       });
     }
     setLoading(false);
@@ -65,13 +82,13 @@ const Auth = () => {
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email-signin">Email</Label>
+              <Label htmlFor="identifier">Email ou Nom d'utilisateur</Label>
               <Input
-                id="email-signin"
-                type="email"
-                placeholder="votre@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text"
+                placeholder="votre@email.com ou votre_nom_utilisateur"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
               />
             </div>

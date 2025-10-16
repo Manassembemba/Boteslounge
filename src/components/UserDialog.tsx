@@ -36,6 +36,7 @@ const UserDialog = ({ open, onOpenChange, onSuccess, user }: UserDialogProps) =>
     email: z.string().email({ message: "Adresse e-mail invalide." }),
     password: z.string().optional(),
     full_name: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères." }),
+    username: z.string().min(3, { message: "Le nom d'utilisateur doit contenir au moins 3 caractères." }),
     role: z.enum(['admin', 'manager', 'cashier']),
     site_id: z.string().uuid().optional(),
   }).refine(data => user || data.password, { 
@@ -158,20 +159,32 @@ const UserDialog = ({ open, onOpenChange, onSuccess, user }: UserDialogProps) =>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="full_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nom complet</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
+                          <FormField
+                            control={form.control}
+                            name="full_name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nom complet</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        <FormField
+                          control={form.control}
+                          name="username"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nom d'utilisateur</FormLabel>
+                              <FormControl>
+                                <Input {...field} disabled={!!user} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />            <FormField
               control={form.control}
               name="email"
               render={({ field }) => (

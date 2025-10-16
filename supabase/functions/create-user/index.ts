@@ -28,7 +28,7 @@ serve(async (req) => {
     console.log("Rôle administrateur vérifié.");
 
     // Étape 3: Récupérer et valider les données du corps de la requête
-    const { email, password, full_name, role, site_id } = await req.json();
+    const { email, password, full_name, username, role, site_id } = await req.json();
     if (role !== 'admin' && !site_id) {
       throw new Error("Requête invalide: site_id est requis pour les non-administrateurs.");
     }
@@ -69,6 +69,7 @@ serve(async (req) => {
     const { error: profileError } = await supabaseAdmin.from("profiles").insert({
       id: newUser.user.id,
       full_name,
+      username,
       site_id: role === 'admin' ? null : site_id, // site_id est null pour les admins
       email, // Ajout de l'email manquant
     });
