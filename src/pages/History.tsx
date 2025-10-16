@@ -10,27 +10,25 @@ import { format, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole"; // Importer le hook
 import { AuthContext } from "@/App";
 import jsPDF from "jspdf";
 import * as jspdfAutoTable from "jspdf-autotable";
 
 const History = () => {
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [sales, setSales] = useState<any[]>([]);
-  const [totalSalesAmount, setTotalSalesAmount] = useState(0);
   const [totalProfitAmount, setTotalProfitAmount] = useState(0);
   const [totalCOGSAmount, setTotalCOGSAmount] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { selectedSiteId } = useContext(AuthContext);
+  const { isAdmin, isManager } = useUserRole(); // Obtenir les rôles
 
   const handleSearch = async () => {
-    if (!dateFrom || !dateTo || !selectedSiteId) {
+    if (!dateFrom || !dateTo) {
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Veuillez sélectionner une date de début, une date de fin et un site.",
+        description: "Veuillez sélectionner une date de début et une date de fin.",
       });
       return;
     }
@@ -39,7 +37,7 @@ const History = () => {
     const from = dateFrom.toISOString();
     const to = endOfDay(dateTo).toISOString();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("sale_items")
       .select(`
         quantity,
@@ -52,9 +50,13 @@ const History = () => {
         products(name, purchase_price)
       `)
       .gte("sales.created_at", from)
-      .lte("sales.created_at", to)
-      .eq("sales.site_id", selectedSiteId)
-      .order("created_at", { foreignTable: "sales", ascending: false });
+      .lte("sales.created_at", to);
+
+    if (selectedSiteId) {
+      query = query.eq("sales.site_id", selectedSiteId);
+    }
+
+    const { data, error } = await query.order("created_at", { foreignTable: "sales", ascending: false });
 
     if (error) {
       toast({
@@ -67,10 +69,12 @@ const History = () => {
       setSales(data || []);
       const total = (data || []).reduce((sum, item) => sum + Number(item.subtotal), 0);
       setTotalSalesAmount(total);
-      const profit = (data || []).reduce((sum, item) => sum + (Number(item.unit_price) - Number(item.products.purchase_price)) * item.quantity, 0);
-      setTotalProfitAmount(profit);
-      const cogs = (data || []).reduce((sum, item) => sum + Number(item.products.purchase_price) * item.quantity, 0);
-      setTotalCOGSAmount(cogs);
+      if (isAdmin || isManager) {
+        const profit = (data || []).reduce((sum, item) => sum + (Number(item.unit_price) - Number(item.products.purchase_price)) * item.quantity, 0);
+        setTotalProfitAmount(profit);
+        const cogs = (data || []).reduce((sum, item) => sum + Number(item.products.purchase_price) * item.quantity, 0);
+        setTotalCOGSAmount(cogs);
+      }
     }
     setLoading(false);
   };
@@ -99,13 +103,17 @@ const History = () => {
     // Summary
     doc.setFontSize(12);
     doc.text(`Total des ventes: ${totalRevenue.toFixed(2)} FC`, 14, 40);
-    doc.text(`Bénéfice total: ${totalProfitAmount.toFixed(2)} FC`, 14, 46);
-    doc.text(`Coût d'achat total: ${totalCOGSAmount.toFixed(2)} FC`, 14, 52);
-    doc.text(`Nombre de transactions: ${sales.length}`, 14, 58);
+    if (isAdmin || isManager) {
+      doc.text(`Bénéfice total: ${totalProfitAmount.toFixed(2)} FC`, 14, 46);
+      doc.text(`Coût d'achat total: ${totalCOGSAmount.toFixed(2)} FC`, 14, 52);
+      doc.text(`Nombre de transactions: ${sales.length}`, 14, 58);
+    } else {
+      doc.text(`Nombre de transactions: ${sales.length}`, 14, 46);
+    }
 
     // Table
     jspdfAutoTable.default(doc, {
-      startY: 55,
+      startY: (isAdmin || isManager) ? 65 : 55,
       head: [["Date", "Produit", "Caissier", "Qté", "Prix Unit.", "Total"]],
       body: sales.map(item => [
         format(new Date(item.sales.created_at), "dd/MM/yy HH:mm"),
@@ -199,19 +207,23 @@ const History = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm">
-              <CardContent className="flex items-center justify-between p-4">
-                <h2 className="text-xl font-bold text-foreground">Bénéfice Total :</h2>
-                <span className="text-2xl font-bold text-success">{totalProfitAmount.toFixed(2)} FC</span>
-              </CardContent>
-            </Card>
+            {(isAdmin || isManager) && (
+              <>
+                <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm">
+                  <CardContent className="flex items-center justify-between p-4">
+                    <h2 className="text-xl font-bold text-foreground">Bénéfice Total :</h2>
+                    <span className="text-2xl font-bold text-success">{totalProfitAmount.toFixed(2)} FC</span>
+                  </CardContent>
+                </Card>
 
-            <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm">
-              <CardContent className="flex items-center justify-between p-4">
-                <h2 className="text-xl font-bold text-foreground">Capital :</h2>
-                <span className="text-2xl font-bold text-muted-foreground">{totalCOGSAmount.toFixed(2)} FC</span>
-              </CardContent>
-            </Card>
+                <Card className="border-border bg-card/50 shadow-card backdrop-blur-sm">
+                  <CardContent className="flex items-center justify-between p-4">
+                    <h2 className="text-xl font-bold text-foreground">Capital :</h2>
+                    <span className="text-2xl font-bold text-muted-foreground">{totalCOGSAmount.toFixed(2)} FC</span>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         )}
 
