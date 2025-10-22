@@ -1,6 +1,7 @@
-# Welcome to your Lovable project
+#MBEMBA NTENDI MANASSE
 
 ## Project info
+BOTES LOUNGE 
 
 
 ## How can I edit this code?
