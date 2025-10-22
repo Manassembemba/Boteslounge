@@ -133,8 +133,8 @@ const Layout = ({ children }: LayoutProps) => {
                   value={selectedSiteId || ""}
                   onValueChange={(value) => {
                     if (value === "all-sites") {
-                      setSelectedSiteId(null);
-                      setSelectedSiteName(null);
+                      setSelectedSiteId("all-sites");
+                      setSelectedSiteName("Tous les sites");
                     } else {
                       const selected = availableSites.find(s => s.id === value);
                       if (selected) {
@@ -146,7 +146,9 @@ const Layout = ({ children }: LayoutProps) => {
                   disabled={sitesLoading || availableSites.length === 0}
                 >
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Sélectionner un site" />
+                  <SelectValue placeholder="Sélectionner un site">
+                    {selectedSiteId === "all-sites" ? "Tous les sites" : selectedSiteName || "Sélectionner un site"}
+                  </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {sitesLoading ? (

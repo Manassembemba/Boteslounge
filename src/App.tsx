@@ -127,16 +127,20 @@ const AppRoutes = () => {
 
 const App = () => {
   const { user, role, loading, siteId, siteName } = useUserRole();
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(siteId);
-  const [selectedSiteName, setSelectedSiteName] = useState<string | null>(siteName);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [selectedSiteName, setSelectedSiteName] = useState<string | null>(null);
 
-  // Met à jour le site sélectionné lorsque le site de l'utilisateur change
   useEffect(() => {
-    if (siteId && !selectedSiteId) {
-      setSelectedSiteId(siteId);
-      setSelectedSiteName(siteName);
+    if (!loading) {
+      if (role === "admin" && selectedSiteId === null) {
+        setSelectedSiteId("all-sites");
+        setSelectedSiteName("Tous les sites");
+      } else if (siteId && selectedSiteId === null) {
+        setSelectedSiteId(siteId);
+        setSelectedSiteName(siteName);
+      }
     }
-  }, [siteId, siteName, selectedSiteId]);
+  }, [loading, role, siteId, siteName, selectedSiteId]);
 
   return (
     <QueryClientProvider client={queryClient}>

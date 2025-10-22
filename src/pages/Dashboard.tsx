@@ -48,8 +48,11 @@ const Dashboard = () => {
       .select("id, total, profit")
       .gte("created_at", todayISO);
 
-    if (selectedSiteId) {
+    if (selectedSiteId && selectedSiteId !== "all-sites") {
       salesQuery = salesQuery.eq("site_id", selectedSiteId);
+    } else if (role !== "admin" && siteId) {
+      // If 'all-sites' is selected but user is not admin, restrict to their assigned site
+      salesQuery = salesQuery.eq("site_id", siteId);
     }
 
     const { data: sales } = await salesQuery;
@@ -71,8 +74,11 @@ const Dashboard = () => {
       .from("products")
       .select("id, name, stock, alert_threshold");
 
-    if (selectedSiteId) {
+    if (selectedSiteId && selectedSiteId !== "all-sites") {
       productsQuery = productsQuery.eq("site_id", selectedSiteId);
+    } else if (role !== "admin" && siteId) {
+      // If 'all-sites' is selected but user is not admin, restrict to their assigned site
+      productsQuery = productsQuery.eq("site_id", siteId);
     }
 
     const { data: products } = await productsQuery;
@@ -88,8 +94,11 @@ const Dashboard = () => {
       .eq("cashier_id", user.id)
       .gte("created_at", todayISO);
 
-    if (selectedSiteId) {
+    if (selectedSiteId && selectedSiteId !== "all-sites") {
       userSalesQuery = userSalesQuery.eq("site_id", selectedSiteId);
+    } else if (role !== "admin" && siteId) {
+      // If 'all-sites' is selected but user is not admin, restrict to their assigned site
+      userSalesQuery = userSalesQuery.eq("site_id", siteId);
     }
 
     const { data: userSales } = await userSalesQuery;
@@ -106,22 +115,28 @@ const Dashboard = () => {
     }
 
     if (role === 'admin') {
-      const { data: capitalData, error: capitalError } = await supabase.rpc('get_total_capital', { p_site_id: selectedSiteId });
+      const { data: capitalData, error: capitalError } = await supabase.rpc('get_total_capital', { p_site_id: selectedSiteId === "all-sites" ? null : selectedSiteId });
       if (!capitalError) {
         setTotalCapital(capitalData);
       }
 
-      const { data: profitData, error: profitError } = await supabase.rpc('get_total_sale_profit', { p_site_id: selectedSiteId });
+      const { data: profitData, error: profitError } = await supabase.rpc('get_total_sale_profit', { p_site_id: selectedSiteId === "all-sites" ? null : selectedSiteId });
       if (!profitError) {
         setTotalProfit(profitData);
       }
 
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+      let withdrawalsQuery = supabase
         .from("capital_transactions")
         .select("created_at, amount, description")
         .eq("type", "withdrawal")
         .order("created_at", { ascending: false })
         .limit(5);
+
+      if (selectedSiteId && selectedSiteId !== "all-sites") {
+        withdrawalsQuery = withdrawalsQuery.eq("site_id", selectedSiteId);
+      }
+
+      const { data: withdrawalsData, error: withdrawalsError } = await withdrawalsQuery;
 
       if (!withdrawalsError) {
         setRecentWithdrawals(withdrawalsData || []);

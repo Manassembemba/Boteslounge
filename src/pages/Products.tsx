@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,20 +28,26 @@ const Products = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
   const { isAdmin, loading: roleLoading } = useUserRole();
-  const { selectedSiteId } = useContext(AuthContext);
+  const { selectedSiteId, siteId } = useContext(AuthContext);
 
-  useEffect(() => {
-    loadProducts();
-  }, [selectedSiteId]);
+  const loadProducts = useCallback(async () => {
+    // If no site is selected (e.g., initial load for non-admin without assigned site), return early
+    if (!selectedSiteId && !isAdmin) return;
 
-  const loadProducts = async () => {
-    if (!selectedSiteId) return;
-
-    const { data, error } = await supabase
+    let query = supabase
       .from("products")
-      .select("id, name, category, purchase_price, selling_price, stock, alert_threshold, is_active")
-      .eq("site_id", selectedSiteId)
-      .order("name");
+      .select("id, name, category, purchase_price, selling_price, stock, alert_threshold, is_active");
+
+    if (selectedSiteId && selectedSiteId !== "all-sites") {
+      query = query.eq("site_id", selectedSiteId);
+    } else if (!isAdmin) {
+      // If 'all-sites' is selected but user is not admin, restrict to their assigned site
+      if (siteId) {
+        query = query.eq("site_id", siteId);
+      }
+    }
+
+    const { data, error } = await query.order("name");
 
     if (error) {
       toast({
@@ -53,7 +59,13 @@ const Products = () => {
     }
 
     setProducts(data || []);
-  };
+  }, [selectedSiteId, siteId, isAdmin, toast]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("products").delete().eq("id", id);

@@ -49,15 +49,20 @@ const History = () => {
         subtotal,
         sales!inner(
           created_at,
-          profiles(email)
+          profiles(full_name)
         ),
         products(name, purchase_price)
       `)
       .gte("sales.created_at", from)
       .lte("sales.created_at", to);
 
-    if (selectedSiteId) {
+    if (selectedSiteId && selectedSiteId !== "all-sites") {
       query = query.eq("sales.site_id", selectedSiteId);
+    } else if (!isAdmin && selectedSiteId === "all-sites") {
+      // If 'all-sites' is selected but user is not admin, restrict to their assigned site
+      if (siteId) {
+        query = query.eq("sales.site_id", siteId);
+      }
     }
 
     const { data, error } = await query.order("created_at", { foreignTable: "sales", ascending: false });
@@ -262,7 +267,7 @@ const History = () => {
                     <TableRow key={index}>
                       <TableCell>{format(new Date(item.sales.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
                       <TableCell>{item.products.name}</TableCell>
-                      <TableCell>{item.sales.profiles.email}</TableCell>
+                      <TableCell>{item.sales.profiles.full_name}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>{Number(item.unit_price).toFixed(2)} FC</TableCell>
                       <TableCell className="text-right">{Number(item.subtotal).toFixed(2)} FC</TableCell>
